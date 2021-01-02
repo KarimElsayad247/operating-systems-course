@@ -243,7 +243,74 @@ int doOPTIMAL(vector<int>& pageReferences, vector<int>::size_type nPages)
 
 int doCLOCK(vector<int>& pageReferences, vector<int>::size_type nPages)
 {
+    // construct buffer to hold pages;
+    vector<int> buffer;
 
+    // the additional bit to keep track of
+    vector<int> bufferBit;
+
+    // pointer is set to indicate the next frame in the buffer after the one just updated after replacement
+    vector<int>::size_type associatedPointer = 0;
+
+    // hold number of misses to be printed later
+    int nPageMisses = 0;
+
+    printHeader("CLOCK");
+
+    for (vector<int>::iterator iter = pageReferences.begin(); iter != pageReferences.end(); ++iter) {
+        
+         // if buffer still has space, add elemetn
+        if (buffer.size() < nPages) {
+
+            // check first if elemetn already in buffer, if it's not add it, otherwise not
+            if (find(buffer.begin(), buffer.end(), *iter) == buffer.end()) {
+                buffer.push_back(*iter);
+                bufferBit.push_back(1);
+            }
+
+            // line will be printed regardless
+            printLine(*iter, true, buffer.begin(), buffer.end());
+        }
+        else {
+            
+            // try finding page in buffer
+            vector<int>::iterator found = find(buffer.begin(), buffer.end(), *iter);
+
+            // if it is in buffer, set its bit to one
+            if (found != buffer.end()) {
+                vector<int>::size_type index = found - buffer.begin();
+                bufferBit[index] = 1;
+                printLine(*iter, true, buffer.begin(), buffer.end());
+                continue;
+            }
+
+            // // keep track of the first page in loop to check if we did one full loop
+            // vector<int>::size_type startingPage = associatedPointer;
+
+            // if not in buffer, look for an page to replace. pointer needs to get back to original point 
+            // in case all page bits were 1, so 1 more loop, hence + 1. not using <= for clarity.
+            for (vector<int>::size_type index = associatedPointer; index < buffer.size() + 1; ++index) {
+                
+                // just to make typing shorter
+                vector<int>::size_type i = index % buffer.size();
+
+                // replace if bit is 0
+                if (bufferBit[i] == 0) {
+                    buffer[i] = *iter;
+                    bufferBit[i] = 1;
+                    printLine(*iter, false, buffer.begin(), buffer.end());
+                    nPageMisses++;
+                    associatedPointer = (i + 1) % buffer.size(); // pointer will be set to next page
+                    break;
+                }
+                // but if bit is one, set to zero
+                else if (bufferBit[i] == 1) {
+                    bufferBit[i] = 0;
+                }
+            }
+        }       
+    }
+    printFooter(nPageMisses);
     return 0;
 }
 
