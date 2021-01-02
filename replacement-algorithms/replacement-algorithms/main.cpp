@@ -7,6 +7,11 @@
 
 using namespace std;
 
+
+/*
+ * Utility funcitons that handle printing
+*/
+
 void printHeader(string policy)
 {
     cout << "Replacement Policy = " << policy << endl;
@@ -22,10 +27,12 @@ void printFooter(int nPageMisses) {
 
 
 template <typename Iter>
-void printLine(int page, bool hit, Iter begin, Iter end)
+void printLine(int page, bool hit, Iter bufferBegin, Iter bufferEnd)
 {
+    // print current page
     cout << setfill('0') << setw(2) << page;
 
+    // print an F if it's a miss
     if (hit) {
         cout << "     ";
     }
@@ -33,11 +40,11 @@ void printLine(int page, bool hit, Iter begin, Iter end)
         cout << " F   ";
     }
 
-    while (begin != end) {
-        cout << setfill('0') << setw(2) << *begin  << " ";
-        begin++;
+    // print contents of buffer
+    while (bufferBegin != bufferEnd) {
+        cout << setfill('0') << setw(2) << *bufferBegin  << " ";
+        bufferBegin++;
     }
-
     cout << endl;
 }
 
@@ -53,22 +60,30 @@ void printLine(int page, bool hit, Iter begin, Iter end)
 //    return false;
 //}
 
+// Used by LRU, this function takes a page and pushes it to the front
 void pushElementToFront(list<int>& usedList, int page)
 {
-    // 1- find in linked list
-    auto locationToPushFront = find(usedList.begin(), usedList.end(), page);
+    // for optimizaiton, check last entry for the page
+    // following principle of locality, the referenced page might be the MRU
+    if (usedList.back() != page) {
+        // 1- find in linked list
+        auto locationToPushFront = find(usedList.begin(), usedList.end(), page);
 
-    // 2- get contents
-    int temp = *locationToPushFront;
+        // 2- get contents
+        int temp = *locationToPushFront;
 
-    // 3- remove and put in front
-    usedList.erase(locationToPushFront);
-    usedList.push_back(temp);
+        // 3- remove and put in front
+        usedList.erase(locationToPushFront);
+        usedList.push_back(temp);
+    }
 }
 
+/*
+ * FUNCTIONS
+ * each of the subsequent functions takes as arguments an array of page references,
+ * and the size of the buffer. each functions handles printing its results.
+*/
 
-// first, implement fifo
-// you need a buffer of some size nPages
 int doFIFO(vector<int>& pageReferences, vector<int>::size_type nPages)
 {
 
@@ -187,10 +202,6 @@ int doOPTIMAL(vector<int>& pageReferences, vector<int>::size_type nPages)
     // construct buffer to hold pages;
     vector<int> buffer;
 
-    // vector to keep track of the furthes page
-    // i.e. the one that will be requestd the latest
-    vector<int> scores(nPages, 0);
-
     // hold number of misses to be printed later
     int nPageMisses = 0;
 
@@ -221,13 +232,11 @@ int doOPTIMAL(vector<int>& pageReferences, vector<int>::size_type nPages)
             int maxScore = 0;
             int maxScoreIndex = 0;
             for (size_t i = 0; i < buffer.size(); ++i) {
-                scores[i] = find(iter + 1, pageReferences.end(), buffer[i]) - iter; 
-                if (scores[i] > maxScore) {
+                int score = find(iter + 1, pageReferences.end(), buffer[i]) - iter; 
+                if (score > maxScore) {
                     maxScoreIndex = i;
-                    maxScore = scores[i];
+                    maxScore = score;
                 }                
-                // maxScoreIndex = (scores[i] > maxScore) ? i : maxScoreIndex;
-                // maxScore = max(maxScore, scores[i]);
             }
 
             // select highest and replace
@@ -300,7 +309,9 @@ int doCLOCK(vector<int>& pageReferences, vector<int>::size_type nPages)
                     bufferBit[i] = 1;
                     printLine(*iter, false, buffer.begin(), buffer.end());
                     nPageMisses++;
-                    associatedPointer = (i + 1) % buffer.size(); // pointer will be set to next page
+
+                    // pointer will be set to next page
+                    associatedPointer = (i + 1) % buffer.size();
                     break;
                 }
                 // but if bit is one, set to zero
@@ -336,7 +347,7 @@ int main()
         pageReferences.push_back(input);
     }
 
-    // invoke appropriate function
+    // invoke appropriate function, each function handles when to print what
     if (sAlgorithm.compare("FIFO") == 0) {
         doFIFO(pageReferences, nPages);
     }
